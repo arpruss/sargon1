@@ -9,6 +9,7 @@ if GRAPHICS:
     import numpy as np
     from hp1345_font_data import hp1345_font_data
     zoom = 7
+    WINDOW = "Sargon"
     JUPITER_SCREEN = 0xC000
     MINIMUM_COMPUTE_TIME_PER_FRAME = 1. / 5
     JUPITER_WIDTH = 64
@@ -16,8 +17,35 @@ if GRAPHICS:
     cursorX = 0
     cursorY = 0
     
+    keyfeed = ''
+    moveFrom = True
+    
+    def mouseClick(event,x,y,flags,param):
+        global keyfeed,moveFrom
+        if event == cv2.EVENT_LBUTTONDOWN:
+            left = (JUPITER_WIDTH*2-12*8)*zoom
+            if x >= left:
+                col = (x - left) // (zoom*12)
+                row = 7 - y // (zoom*12)
+                if 0 <= col <= 7 and 0 <= row <= 7:
+                    keyfeed += chr(col+ord('a')) + chr(row+ord('1'))
+                    if moveFrom:
+                        keyfeed += '-'
+                    moveFrom = not moveFrom
+                
+    cv2.namedWindow(WINDOW)
+    cv2.setMouseCallback(WINDOW,mouseClick)
+
     def getch():
-        return chr(cv2.waitKey(0))
+        global keyfeed
+        while True:
+            if keyfeed:
+                c = keyfeed[0]
+                keyfeed = keyfeed[1:]
+                return c
+            c = cv2.waitKey(1)
+            if c >= 0:
+                return chr(c)
         
     blocks = []
     
@@ -29,7 +57,7 @@ if GRAPHICS:
         else:
             v = [ [(-18,-6),(36,0)], [(0,0)] ]
         def scale(p):
-            return ( int(2*zoom*((p[0]-6)/18.)+zoom), int(3*zoom + zoom*((-(p[1]+8))/18.*2)-1) )
+            return ( int(2*zoom*((p[0]-6)/18.)+zoom), int(3*zoom + zoom*((-(p[1]+7))/18.*2)-1) )
         if len(v):
             pos = (0,0)
             for stroke in v:
@@ -199,7 +227,7 @@ if GRAPHICS:
         events = z.run()
         if (events & z._BREAKPOINT_HIT) or time.time() >= lastFrame + MINIMUM_COMPUTE_TIME_PER_FRAME:
             image = getImage()
-            cv2.imshow("Sargon", image)
+            cv2.imshow(WINDOW, image)
             if handleBreakpoints():
                 break
             cv2.waitKey(1)
