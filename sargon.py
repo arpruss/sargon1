@@ -8,7 +8,7 @@ if GRAPHICS:
     import cv2
     import numpy as np
     from hp1345_font_data import hp1345_font_data
-    zoom = 7
+    zoom = 6
     WINDOW = "Sargon"
     JUPITER_SCREEN = 0xC000
     MINIMUM_COMPUTE_TIME_PER_FRAME = 1. / 5
