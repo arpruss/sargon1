@@ -1,0 +1,20 @@
+--- sargon-z80.asm.orig	2021-12-16 11:10:33.352152900 -0600
++++ sargon-z80.asm	2021-12-15 14:18:13.388149900 -0600
+@@ -2034,7 +2034,7 @@
+ ;               piece on its own color square is produced
+ ;               by moving in a kernel of 6 blocks.
+ ;*******************************************************
+-        ORG     START+384
++        ORG     START+384+7h     ; add a bit to avoid overlap with start data area [ARP]
+ BLBASE  EQU     START+512
+ BLOCK   EQU     $-BLBASE
+         DB      $80,$80,$80,$80 ; Black Pawn on White square
+@@ -2045,7 +2045,7 @@
+         DB      $BE,$BF,$BF,$95
+         DB      $A0,$BE,$BF,$85
+         DB      $83,$83,$83,$81
+-        DB      $80,$A0,$00,$80 ; Black Bishop on White square
++        DB      $80,$A0,$80,$80 ; Black Bishop on White square
+         DB      $A8,$BF,$BD,$80
+         DB      $82,$AF,$87,$80
+         DB      $82,$83,$83,$80
