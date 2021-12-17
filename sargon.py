@@ -3,6 +3,7 @@ GRAPHICS = True # uses cv2 to display board
 import z80 # pip3 --install z80, but modified to make af visible
 import binascii
 import time
+import sys
 
 if GRAPHICS:
     import cv2
@@ -46,6 +47,8 @@ if GRAPHICS:
                 keyfeed = keyfeed[1:]
                 return c
             c = cv2.waitKey(1)
+            if cv2.getWindowProperty(WINDOW, 0) == -1:
+                sys.exit(0)
             if c >= 0:
                 return chr(c)
         
@@ -261,6 +264,9 @@ if GRAPHICS:
             if handleBreakpoints():
                 break
             cv2.waitKey(1)
+            if cv2.getWindowProperty(WINDOW, 0) == -1:
+                break
+
             lastFrame = time.time()
 else:
     while True:
