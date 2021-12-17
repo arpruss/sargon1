@@ -13,7 +13,9 @@ if GRAPHICS:
     JUPITER_SCREEN = 0xC000
     MINIMUM_COMPUTE_TIME_PER_FRAME = 1. / 5
     JUPITER_WIDTH = 64
+    JUPITER_LEFT_SIDE = 16
     JUPITER_HEIGHT = 32
+    FLOODFILL = True
     cursorX = 0
     cursorY = 0
     
@@ -47,7 +49,7 @@ if GRAPHICS:
             if c >= 0:
                 return chr(c)
         
-    blocks = []
+    charset = []
     
     for i in range(256):
         data = np.zeros((3*zoom,2*zoom),dtype=np.uint8)
@@ -66,7 +68,9 @@ if GRAPHICS:
                     if j != 0: 
                         cv2.line(data, scale(pos), scale(pos1), 0, 1)
                     pos = pos1
-        blocks.append(data)
+        charset.append(data)
+    
+    blocks = []
     
     for block in range(64):
         data = np.zeros((3,2),dtype=np.uint8)
@@ -75,7 +79,7 @@ if GRAPHICS:
             for i in range(2):
                 data[j,i] = 0 if (block & a) else 255
                 a <<= 1
-        blocks[0x80+block] = cv2.resize(data, (2*zoom,3*zoom), interpolation = cv2.INTER_NEAREST)
+        blocks.append(data) # cv2.resize(data, (2*zoom,3*zoom), interpolation = cv2.INTER_NEAREST)
 else:
     from getch import getch # pip3 --install py-getch
 
@@ -202,14 +206,37 @@ if GRAPHICS: z.set_breakpoint(BLINKER) # blinker
 z.pc = START
 
 def getImage():
-    data = np.zeros((JUPITER_HEIGHT*3*zoom,JUPITER_WIDTH*2*zoom),dtype=np.uint8)
+    screen = np.full((JUPITER_HEIGHT*3*zoom,JUPITER_WIDTH*2*zoom),255,dtype=np.uint8)
+    right = np.full((JUPITER_HEIGHT*3,(JUPITER_WIDTH-JUPITER_LEFT_SIDE)*2),255,dtype=np.uint8)
+    
+    haveBlocks = False
+    for x in range(JUPITER_LEFT_SIDE,JUPITER_WIDTH):
+        for y in range(JUPITER_HEIGHT):
+            c = z.memory[JUPITER_SCREEN + y * JUPITER_WIDTH + x]
+            if 0x80 <= c < 0x80 + 64:
+                x1 = (x-JUPITER_LEFT_SIDE)*2
+                y1 = y*3
+                right[y1:y1+3, x1:x1+2] = blocks[c-0x80]
+                haveBlocks = True
+
+    if FLOODFILL and haveBlocks:
+        for col in range(8):
+            for row in range(8):
+                chunk = right[12*row:12*(row+1), 12*col:12*(col+1)]
+                cv2.floodFill(chunk,None,(0,0),64 if (col+row) % 2 == 1 else 200)
+                right[12*row:12*(row+1), 12*col:12*(col+1)] = chunk
+            
+    screen[0:JUPITER_HEIGHT*3*zoom,JUPITER_LEFT_SIDE*2*zoom:JUPITER_WIDTH*2*zoom] = cv2.resize(right, (2*zoom*(JUPITER_WIDTH-JUPITER_LEFT_SIDE),3*zoom*JUPITER_HEIGHT), interpolation = cv2.INTER_NEAREST)
+        
     for x in range(JUPITER_WIDTH):
         for y in range(JUPITER_HEIGHT):
-            block = z.memory[JUPITER_SCREEN + y * JUPITER_WIDTH + x]
-            x1 = x*2*zoom
-            y1 = y*3*zoom
-            data[y1:y1+3*zoom, x1:x1+2*zoom] = blocks[block]
-    return data
+            c = z.memory[JUPITER_SCREEN + y * JUPITER_WIDTH + x]
+            if c < 0x80:
+                x1 = x*2*zoom
+                y1 = y*3*zoom
+                screen[y1:y1+3*zoom, x1:x1+2*zoom] = charset[c]
+
+    return screen
 
 def handleBreakpoints():
     if z.pc == 0x00:
@@ -217,6 +244,8 @@ def handleBreakpoints():
         return true
     elif z.pc == 0x38:
         return handle38()
+    elif GRAPHICS and z.pc == BLINKER:
+        time.sleep(0.01)
     else:
         return False    
 
@@ -226,6 +255,7 @@ if GRAPHICS:
         z.ticks_to_stop = 200000
         events = z.run()
         if (events & z._BREAKPOINT_HIT) or time.time() >= lastFrame + MINIMUM_COMPUTE_TIME_PER_FRAME:
+            t = time.time()
             image = getImage()
             cv2.imshow(WINDOW, image)
             if handleBreakpoints():
