@@ -256,12 +256,16 @@ hp1345_font_data.append([[(-36, 16), (6, 2), (6, 0), (6, -2), (6, 0), (6, 2)], [
 hp1345_font_data.append([[(0, 16), (3, 2), (6, -2), (3, 2)], [(6, -18)]])
 hp1345_font_data.append([])
 
-def hp1345_render(s, x=0, y=0, size=1.):
+def hp1345_render(s, x=0, y=0, size=1., round=False):
     height = size * 3. / 2
     def scale(p):
-        return ( size*((p[0]-6)/18.)+size/2, height + size*((-(p[1]+7))/18.)-1 )
+        x,y = size*((p[0]-6)/18.)+size/2, height + size*((-(p[1]+7))/18.)-1 
+        if round:
+            return int(x), int(y)
+        else:
+            return x, y
     for c in s:
-        if i != '_':
+        if c != '_':
             v = hp1345_font_data[ord(c)]
         else:
             v = [ [(-18,-6),(36,0)], [(0,0)] ]

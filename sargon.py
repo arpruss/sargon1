@@ -8,7 +8,7 @@ import sys
 if GRAPHICS:
     import cv2
     import numpy as np
-    from hp1345_font_data import hp1345_font_data
+    import hp1345_font_data
     zoom = 6
     WINDOW = "Sargon"
     JUPITER_SCREEN = 0xC000
@@ -57,20 +57,8 @@ if GRAPHICS:
     for i in range(256):
         data = np.zeros((3*zoom,2*zoom),dtype=np.uint8)
         data.fill(255)
-        if i != ord('_'):
-            v = hp1345_font_data[i]
-        else:
-            v = [ [(-18,-6),(36,0)], [(0,0)] ]
-        def scale(p):
-            return ( int(2*zoom*((p[0]-6)/18.)+zoom), int(3*zoom + zoom*((-(p[1]+7))/18.*2)-1) )
-        if len(v):
-            pos = (0,0)
-            for stroke in v[:-1]:
-                for j in range(0,len(stroke)):
-                    pos1 = (pos[0]+stroke[j][0],pos[1]+stroke[j][1])
-                    if j != 0: 
-                        cv2.line(data, scale(pos), scale(pos1), 0, 1)
-                    pos = pos1
+        for start,end in hp1345_font_data.hp1345_render(chr(i), size=2*zoom, round=True):
+            cv2.line(data, start, end, 0, 1)
         charset.append(data)
     
     blocks = []
