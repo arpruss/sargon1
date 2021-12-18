@@ -8,6 +8,11 @@ import hp1345
 import readhex
 import math
 
+MINIMUM_COMPUTE_TIME_PER_FRAME = 1. / 5
+ZOOM = 6
+FLOODFILL = True
+WINDOW = "Sargon"
+
 STATE_ASK_PLAY = 0
 STATE_ASK_COLOR = 1
 STATE_ASK_LEVEL = 2
@@ -23,14 +28,14 @@ BLINKER = ORG+0x204C
 
 state = STATE_ASK_PLAY
 
-ZOOM = 6
-WINDOW = "Sargon"
 JUPITER_SCREEN = 0xC000
-MINIMUM_COMPUTE_TIME_PER_FRAME = 1. / 5
 JUPITER_WIDTH = 64
 JUPITER_LEFT_SIDE = 16
 JUPITER_HEIGHT = 32
-FLOODFILL = True
+VCHAR = ZOOM*3
+HCHAR = ZOOM*2
+SQUARE = ZOOM*12
+
 cursorX = 0
 cursorY = 0
 
@@ -42,8 +47,8 @@ def mouseClick(event,x,y,flags,param):
     if event == cv2.EVENT_LBUTTONDOWN:
         left = (JUPITER_WIDTH*2-12*8)*ZOOM
         if x >= left:
-            col = (x - left) // (ZOOM*12)
-            row = 7 - y // (ZOOM*12)
+            col = (x - left) // SQUARE
+            row = 7 - y // SQUARE
             if 0 <= col <= 7 and 0 <= row <= 7:
                 keyfeed += chr(col+ord('a')) + chr(row+ord('1'))
                 if moveFrom:
@@ -69,9 +74,9 @@ def getch():
 charset = []
 
 for i in range(256):
-    data = np.zeros((3*ZOOM,2*ZOOM),dtype=np.uint8)
+    data = np.zeros((VCHAR,HCHAR),dtype=np.uint8)
     data.fill(255)
-    for start,end in hp1345.hp1345_render(chr(i), size=2*ZOOM, round=round, dotSize=0):
+    for start,end in hp1345.hp1345_render(chr(i), width=HCHAR, round=round, dotSize=0):
         cv2.line(data, start, end, 0, 1)
     charset.append(data)
 
@@ -84,7 +89,7 @@ for block in range(64):
         for i in range(2):
             data[j,i] = 0 if (block & a) else 255
             a <<= 1
-    blocks.append(data) # cv2.resize(data, (2*ZOOM,3*ZOOM), interpolation = cv2.INTER_NEAREST)
+    blocks.append(data)
 
 def getWord(address):
     return z.memory[address] | (z.memory[(address+1) & 0xFFFF] << 8)
@@ -187,7 +192,7 @@ z.set_breakpoint(BLINKER)
 z.pc = START
 
 def getImage():
-    screen = np.full((JUPITER_HEIGHT*3*ZOOM,JUPITER_WIDTH*2*ZOOM),255,dtype=np.uint8)
+    screen = np.full((JUPITER_HEIGHT*VCHAR,JUPITER_WIDTH*HCHAR),255,dtype=np.uint8)
     right = np.full((JUPITER_HEIGHT*3,(JUPITER_WIDTH-JUPITER_LEFT_SIDE)*2),255,dtype=np.uint8)
     
     haveBlocks = False
@@ -207,15 +212,15 @@ def getImage():
                 cv2.floodFill(chunk,None,(0,0),64 if chunk[0,0] == 0 else 200)
                 right[12*row:12*(row+1), 12*col:12*(col+1)] = chunk
             
-    screen[0:JUPITER_HEIGHT*3*ZOOM,JUPITER_LEFT_SIDE*2*ZOOM:JUPITER_WIDTH*2*ZOOM] = cv2.resize(right, (2*ZOOM*(JUPITER_WIDTH-JUPITER_LEFT_SIDE),3*ZOOM*JUPITER_HEIGHT), interpolation = cv2.INTER_NEAREST)
+    screen[0:JUPITER_HEIGHT*VCHAR,JUPITER_LEFT_SIDE*HCHAR:JUPITER_WIDTH*HCHAR] = cv2.resize(right, (HCHAR*(JUPITER_WIDTH-JUPITER_LEFT_SIDE),VCHAR*JUPITER_HEIGHT), interpolation = cv2.INTER_NEAREST)
         
     for x in range(JUPITER_WIDTH):
         for y in range(JUPITER_HEIGHT):
             c = z.memory[JUPITER_SCREEN + y * JUPITER_WIDTH + x]
             if c < 0x80:
-                x1 = x*2*ZOOM
-                y1 = y*3*ZOOM
-                screen[y1:y1+3*ZOOM, x1:x1+2*ZOOM] = charset[c]
+                x1 = x*HCHAR
+                y1 = y*VCHAR
+                screen[y1:y1+VCHAR, x1:x1+HCHAR] = charset[c]
 
     return screen
 

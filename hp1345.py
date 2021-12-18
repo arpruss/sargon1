@@ -258,8 +258,13 @@ hp1345_font_data.append([[(-36, 16), (6, 2), (6, 0), (6, -2), (6, 0), (6, 2)], [
 hp1345_font_data.append([[(0, 16), (3, 2), (6, -2), (3, 2)], [(6, -18)]])
 hp1345_font_data.append([])
 
-def hp1345_render(s, x=0, y=0, size=1., round=None, dotSize=0):
-    height = size * 3. / 2
+def hp1345_render(s, x=0, y=0, width=1., height=None, round=None, dotSize=0, fixUnderscore=True):
+    if height is None:
+        height = width * 3. / 2
+        size = width
+    else:
+        size = height * 2. / 3
+        
     def scale(p):
         x,y = size*((p[0]-6)/18.)+size/2, height + size*((-(p[1]+7))/18.)-1 
         if round:
@@ -267,7 +272,7 @@ def hp1345_render(s, x=0, y=0, size=1., round=None, dotSize=0):
         else:
             return x, y
     for c in s:
-        if c != '_':
+        if c != '_' or not fixUnderscore:
             try:
                 v = hp1345_font_data[ord(c)]
             except:
@@ -300,6 +305,3 @@ def hp1345_render(s, x=0, y=0, size=1., round=None, dotSize=0):
                 if newPos is not None:
                     pos = newPos
         x += size
-    
-    
-    
