@@ -7,36 +7,9 @@ import numpy as np
 import hp1345
 import readhex
 import math
-
-try:
-    import inputs
-    import threading
-    
-    eventList = []
-    
-    def monitorGamepad():
-        while True:
-            try:
-                for e in inputs.get_gamepad():
-                    eventList.append(e)
-            except inputs.UnpluggedError:
-                time.sleep(0.5)
-    
-    gamepadThread = threading.Thread(target=monitorGamepad)
-    gamepadThread.daemon = True
-    gamepadThread.start()
-    
-    def gamepadEvents():
-        copy = eventList[:]
-        eventList.clear()
-        return copy
         
-    def haveGamepad():
-        return len(inputs.devices.gamepads)>0
-        
-except ImportError:
-    def gamepadEvents(): return []
-    def haveGamepad(): return False
+def gamepadEvents(): return []
+def haveGamepad(): return False
 
 MINIMUM_COMPUTE_TIME_PER_FRAME = 1. / 5
 ZOOM = 10
@@ -73,6 +46,15 @@ VCHAR = ZOOM*3
 HCHAR = ZOOM*2
 SQUARE = ZOOM*12
 
+KEY_LEFT = (65361,2424832)
+KEY_RIGHT = (65363,2555904)
+KEY_UP = (65362,2490368)
+KEY_DOWN = (65364,2621440)
+KEY_SELECT = (10,13)
+KEY_ARROWS = KEY_LEFT+KEY_RIGHT+KEY_UP+KEY_DOWN
+
+usedArrows = False
+
 cursorX = 0
 cursorY = 0
 
@@ -105,9 +87,9 @@ def updateScreen():
     cv2.imshow(WINDOW, getImage())
 
 def getch():
-    global keyfeed, boardCursorX, boardCursorY
+    global keyfeed, boardCursorX, boardCursorY, usedArrows
     
-    if state in OPTIONS and haveGamepad():
+    if state in OPTIONS:
         putCharacter(OPTIONS[state][0], advance=False)
         updateScreen()
     
@@ -117,67 +99,71 @@ def getch():
             keyfeed = keyfeed[1:]
             return c
         c = cv2.waitKeyEx(1)
-        print(c)
+        if c < 0:
+            continue
+        if not usedArrows and c in KEY_ARROWS:
+            usedArrows = True
         if cv2.getWindowProperty(WINDOW, 0) == -1:
             sys.exit(0)
         if c == 27 and state != STATE_SETUP:
             if state in OPTIONS and ord('n') in OPTIONS[state]:
                 return 'n'
             c = 18
-        if (c == 10 or c == 13) and state in OPTIONS and ord('n') in OPTIONS[state]:
+        if c in KEY_SELECT and state in OPTIONS and ord('n') in OPTIONS[state]:
             pressed = getCharacter() 
             if pressed in OPTIONS[state]:
                 return chr(pressed)
             else:
                 return 'y'
-        if c >= 0:
+
+        if state == STATE_PLAY:
+            if boardCursorX == None:
+                boardCursorX = 3
+                boardCursorY = 3
+            if c in KEY_LEFT:
+                boardCursorX -= 1
+                updateScreen()
+                c = -1
+            elif c in KEY_RIGHT:
+                boardCursorX += 1
+                updateScreen()
+                c = -1
+            elif c in KEY_UP:
+                boardCursorY -= 1
+                updateScreen()
+                c = -1
+            elif c in KEY_DOWN:
+                boardCursorY += 1
+                updateScreen()
+                c = -1
+            elif c in KEY_SELECT:
+                makeMove(boardCursorX, 7-boardCursorY)
+                c = -1
+        elif state in OPTIONS:
+            options = OPTIONS[state]
+            if c in KEY_LEFT+KEY_RIGHT:
+                current = getCharacter()
+                try:
+                    index = options.index(current)
+                    if c in KEY_LEFT:
+                        index = (len(options)+index-1) % len(options)
+                    else:
+                        index = (index+1) % len(options)
+                except:
+                    index = 0
+                putCharacter(options[index], advance=False)
+                updateScreen()
+                c = -1
+            elif c in KEY_SELECT:
+                current = getCharacter()
+                if current in options:
+                    return chr(current)
+            elif c == 27 and ord('n') in options:
+                return 'n'
+
+        if c >= 0 and c < 0x100:
             return chr(c)
         
-        events = gamepadEvents()
-        if events:
-            for e in events:
-                if state == STATE_PLAY:
-                    if boardCursorX == None:
-                        boardCursorX = 3
-                        boardCursorY = 3
-                    if e.code == 'ABS_HAT0X':
-                        if e.state < 0:
-                            boardCursorX -= 1
-                            updateScreen()
-                        elif e.state > 0:
-                            boardCursorX += 1
-                            updateScreen()
-                    elif e.code == 'ABS_HAT0Y':
-                        if e.state < 0:
-                            boardCursorY -= 1
-                            updateScreen()
-                        elif e.state > 0:
-                            boardCursorY += 1
-                            updateScreen()
-                    elif e.code == 'BTN_EAST' and e.state:
-                        makeMove(boardCursorX, 7-boardCursorY)
-                    elif e.code == 'BTN_START' and e.state:
-                        return chr(18)
-                elif state in OPTIONS:
-                    options = OPTIONS[state]
-                    if e.code == 'ABS_HAT0X' and e.state != 0:
-                        current = getCharacter()
-                        try:
-                            index = options.index(current)
-                            if e.state < 0:
-                                index = (len(options)+index-1) % len(options)
-                            else:
-                                index = (index+1) % len(options)
-                        except:
-                            index = 0
-                        putCharacter(options[index], advance=False)
-                        updateScreen()
-                    elif e.code == 'BTN_EAST' and e.state:
-                        current = getCharacter()
-                        if current in options:
-                            return chr(current)
-                    elif e.code == 'BTN_SOUTH' and e.state and ord('n') in options:
-                        return 'n'
 charset = []
 
 for i in range(256):
@@ -337,7 +323,7 @@ def getImage():
                 y1 = y*VCHAR
                 screen[y1:y1+VCHAR, x1:x1+HCHAR] = charset[c]
                 
-    if state == STATE_PLAY and boardCursorX is not None and boardCursorY is not None:
+    if state == STATE_PLAY and boardCursorX is not None and boardCursorY is not None and usedArrows:
         x = boardCursorX * SQUARE + JUPITER_LEFT_SIDE*HCHAR + SQUARE // 2
         y = boardCursorY * SQUARE + SQUARE // 2
         cv2.circle(screen, (x,y), int(SQUARE * 0.45), 0 if (boardCursorX+boardCursorY)%2 == 0 else 255, 2, cv2.LINE_AA)
