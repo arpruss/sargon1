@@ -1,9 +1,12 @@
-GRAPHICS = True # uses cv2 to display board
-
 import z80 # pip3 --install z80, but modified to make af visible
 import binascii
 import time
 import sys
+import cv2
+import numpy as np
+import hp1345
+import readhex
+import math
 
 STATE_ASK_PLAY = 0
 STATE_ASK_COLOR = 1
@@ -20,104 +23,68 @@ BLINKER = ORG+0x204C
 
 state = STATE_ASK_PLAY
 
-if GRAPHICS:
-    import cv2
-    import numpy as np
-    import hp1345_font_data
-    import math
-    
-    zoom = 6
-    WINDOW = "Sargon"
-    JUPITER_SCREEN = 0xC000
-    MINIMUM_COMPUTE_TIME_PER_FRAME = 1. / 5
-    JUPITER_WIDTH = 64
-    JUPITER_LEFT_SIDE = 16
-    JUPITER_HEIGHT = 32
-    FLOODFILL = True
-    cursorX = 0
-    cursorY = 0
-    
-    keyfeed = ''
-    moveFrom = True
-    
-    def mouseClick(event,x,y,flags,param):
-        global keyfeed,moveFrom
-        if event == cv2.EVENT_LBUTTONDOWN:
-            left = (JUPITER_WIDTH*2-12*8)*zoom
-            if x >= left:
-                col = (x - left) // (zoom*12)
-                row = 7 - y // (zoom*12)
-                if 0 <= col <= 7 and 0 <= row <= 7:
-                    keyfeed += chr(col+ord('a')) + chr(row+ord('1'))
-                    if moveFrom:
-                        keyfeed += '-'
-                    moveFrom = not moveFrom
-                
-    cv2.namedWindow(WINDOW)
-    cv2.setMouseCallback(WINDOW,mouseClick)
+zoom = 6
+WINDOW = "Sargon"
+JUPITER_SCREEN = 0xC000
+MINIMUM_COMPUTE_TIME_PER_FRAME = 1. / 5
+JUPITER_WIDTH = 64
+JUPITER_LEFT_SIDE = 16
+JUPITER_HEIGHT = 32
+FLOODFILL = True
+cursorX = 0
+cursorY = 0
 
-    def getch():
-        global keyfeed
-        while True:
-            if keyfeed:
-                c = keyfeed[0]
-                keyfeed = keyfeed[1:]
-                return c
-            c = cv2.waitKey(1)
-            if cv2.getWindowProperty(WINDOW, 0) == -1:
-                sys.exit(0)
-            if c >= 0:
-                return chr(c)
-        
-    charset = []
-    
-    for i in range(256):
-        data = np.zeros((3*zoom,2*zoom),dtype=np.uint8)
-        data.fill(255)
-        for start,end in hp1345_font_data.hp1345_render(chr(i), size=2*zoom, round=math.floor):
-            cv2.line(data, start, end, 0, 1)
-        charset.append(data)
-    
-    blocks = []
-    
-    for block in range(64):
-        data = np.zeros((3,2),dtype=np.uint8)
-        a = 1
-        for j in range(3):
-            for i in range(2):
-                data[j,i] = 0 if (block & a) else 255
-                a <<= 1
-        blocks.append(data) # cv2.resize(data, (2*zoom,3*zoom), interpolation = cv2.INTER_NEAREST)
-else:
-    from getch import getch # pip3 --install py-getch
+keyfeed = ''
+moveFrom = True
 
-def hexToMemory(filename,startAddress=0,length=-1,fill=0):
-    memory = [None] * 0x10000
-    last = 0
-    with open(filename,"r") as f:
-        for line in f:
-            line = line.strip()
-            if line[0] == ':':
-                data = binascii.unhexlify(line[1:])
-                if data[3] == 1:
-                    break
-                elif data[3] == 0:
-                    count = data[0]
-                    address = (data[1] << 8) | data[2]
-                    for i in range(count):
-                        a = address+i-startAddress
-                        if memory[a] is not None:
-                            print("Overlap at %04x" % a)
-                            #raise Exception("overlap")
-                        memory[a] = data[4+i]
-                    last = max(last, a+1)
-    for i in range(0x10000):
-        if memory[i] is None:
-            memory[i] = fill
-    if length < 0:
-        return bytes(memory[:last])
-    else:
-        return bytes(memory)
+def mouseClick(event,x,y,flags,param):
+    global keyfeed,moveFrom
+    if event == cv2.EVENT_LBUTTONDOWN:
+        left = (JUPITER_WIDTH*2-12*8)*zoom
+        if x >= left:
+            col = (x - left) // (zoom*12)
+            row = 7 - y // (zoom*12)
+            if 0 <= col <= 7 and 0 <= row <= 7:
+                keyfeed += chr(col+ord('a')) + chr(row+ord('1'))
+                if moveFrom:
+                    keyfeed += '-'
+                moveFrom = not moveFrom
+            
+cv2.namedWindow(WINDOW)
+cv2.setMouseCallback(WINDOW,mouseClick)
+
+def getch():
+    global keyfeed
+    while True:
+        if keyfeed:
+            c = keyfeed[0]
+            keyfeed = keyfeed[1:]
+            return c
+        c = cv2.waitKey(1)
+        if cv2.getWindowProperty(WINDOW, 0) == -1:
+            sys.exit(0)
+        if c >= 0:
+            return chr(c)
+    
+charset = []
+
+for i in range(256):
+    data = np.zeros((3*zoom,2*zoom),dtype=np.uint8)
+    data.fill(255)
+    for start,end in hp1345_font_data.hp1345_render(chr(i), size=2*zoom, round=math.floor):
+        cv2.line(data, start, end, 0, 1)
+    charset.append(data)
+
+blocks = []
+
+for block in range(64):
+    data = np.zeros((3,2),dtype=np.uint8)
+    a = 1
+    for j in range(3):
+        for i in range(2):
+            data[j,i] = 0 if (block & a) else 255
+            a <<= 1
+    blocks.append(data) # cv2.resize(data, (2*zoom,3*zoom), interpolation = cv2.INTER_NEAREST)
 
 def getWord(address):
     return z.memory[address] | (z.memory[(address+1) & 0xFFFF] << 8)
@@ -133,29 +100,20 @@ def getBytes(address,count):
     return data
     
 def putCharacter(c):
-    if GRAPHICS:
-        global cursorX, cursorY
-        if c == ord('\n'):
-            cursorY += 1
-            cursorX = 0
-        else:
-            z.memory[JUPITER_SCREEN+cursorY*JUPITER_WIDTH+cursorX] = c
-            cursorX += 1
+    global cursorX, cursorY
+    if c == ord('\n'):
+        cursorY += 1
+        cursorX = 0
     else:
-        if c == ord('\n'):
-            print(flush=True)
-        else:
-            print(chr(c),end='',flush=True)
+        z.memory[JUPITER_SCREEN+cursorY*JUPITER_WIDTH+cursorX] = c
+        cursorX += 1
 
 def clearScreen():            
-    if GRAPHICS:
-        global cursorX, cursorY
-        cursorX = 0
-        cursorY = 0
-        for i in range(JUPITER_WIDTH*JUPITER_HEIGHT):
-            z.memory[JUPITER_SCREEN+i] = 0
-    else:
-        print(flush=True)
+    global cursorX, cursorY
+    cursorX = 0
+    cursorY = 0
+    for i in range(JUPITER_WIDTH*JUPITER_HEIGHT):
+        z.memory[JUPITER_SCREEN+i] = 0
         
 def updateState(msg):
     global state
@@ -222,10 +180,10 @@ def handle38():
     return False
 
 z = z80.Z80Machine()
-z.set_memory_block(0, hexToMemory(FILE))
+z.set_memory_block(0, readhex.hexToMemory(FILE))
 z.set_breakpoint(0x38)
 z.set_breakpoint(0x00)
-if GRAPHICS: z.set_breakpoint(BLINKER) # blinker
+z.set_breakpoint(BLINKER) 
 z.pc = START
 
 def getImage():
@@ -267,30 +225,23 @@ def handleBreakpoints():
         return true
     elif z.pc == 0x38:
         return handle38()
-    elif GRAPHICS and z.pc == BLINKER:
+    elif z.pc == BLINKER:
         time.sleep(0.01)
     else:
         return False    
 
-if GRAPHICS:
-    lastFrame = 0
-    while True:
-        z.ticks_to_stop = 200000
-        events = z.run()
-        if (events & z._BREAKPOINT_HIT) or time.time() >= lastFrame + MINIMUM_COMPUTE_TIME_PER_FRAME:
-            t = time.time()
-            image = getImage()
-            cv2.imshow(WINDOW, image)
-            if handleBreakpoints():
-                break
-            cv2.waitKey(1)
-            if cv2.getWindowProperty(WINDOW, 0) == -1:
-                break
-
-            lastFrame = time.time()
-else:
-    while True:
-        events = z.run()
+lastFrame = 0
+while True:
+    z.ticks_to_stop = 200000
+    events = z.run()
+    if (events & z._BREAKPOINT_HIT) or time.time() >= lastFrame + MINIMUM_COMPUTE_TIME_PER_FRAME:
+        t = time.time()
+        image = getImage()
+        cv2.imshow(WINDOW, image)
         if handleBreakpoints():
             break
-    
+        cv2.waitKey(1)
+        if cv2.getWindowProperty(WINDOW, 0) == -1:
+            break
+
+        lastFrame = time.time()
