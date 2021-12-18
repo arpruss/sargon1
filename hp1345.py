@@ -258,7 +258,7 @@ hp1345_font_data.append([[(-36, 16), (6, 2), (6, 0), (6, -2), (6, 0), (6, 2)], [
 hp1345_font_data.append([[(0, 16), (3, 2), (6, -2), (3, 2)], [(6, -18)]])
 hp1345_font_data.append([])
 
-def hp1345_render(s, x=0, y=0, size=1., round=None):
+def hp1345_render(s, x=0, y=0, size=1., round=None, dotSize=0):
     height = size * 3. / 2
     def scale(p):
         x,y = size*((p[0]-6)/18.)+size/2, height + size*((-(p[1]+7))/18.)-1 
@@ -277,11 +277,28 @@ def hp1345_render(s, x=0, y=0, size=1., round=None):
         if len(v):
             pos = (x,y)
             for stroke in v[:-1]:
+                
+                newPos = None
+                
+                if dotSize > 0 and len(stroke) == 2 and stroke[1] == (0,0):
+                    returnToOriginal = pos
+                    baseX,baseY = stroke[0]
+                    newPos = (pos[0]+baseX,pos[1]+baseY)
+                    if dotSize == 1:
+                        stroke = [(baseX,baseY), (1,1), (-2,0), (1,-1)]
+                    elif dotSize == 2:
+                        stroke = [(baseX,baseY-1), (1,1), (-1,1), (-1,-1), (1,-1)]
+                    else:
+                        stroke = [(baseX-1,baseY-1), (2,0), (0,2), (-2,0), (0,-2)]
+                        
                 for j in range(0,len(stroke)):
                     pos1 = (pos[0]+stroke[j][0],pos[1]+stroke[j][1])
                     if j != 0:
                         yield(scale(pos),scale(pos1))
                     pos = pos1
+                    
+                if newPos is not None:
+                    pos = newPos
         x += size
     
     
