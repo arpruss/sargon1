@@ -5,10 +5,27 @@ import binascii
 import time
 import sys
 
+STATE_ASK_PLAY = 0
+STATE_ASK_COLOR = 1
+STATE_ASK_LEVEL = 2
+STATE_ASK_ANALYZE = 3
+STATE_PLAY = 4
+STATE_END_PLAY = 5
+STATE_SETUP = 6
+
+FILE = "zout/sargon-z80.hex"
+ORG = 0x0000
+START = ORG+0x1a00 
+BLINKER = ORG+0x204C
+
+state = STATE_ASK_PLAY
+
 if GRAPHICS:
     import cv2
     import numpy as np
     import hp1345_font_data
+    import math
+    
     zoom = 6
     WINDOW = "Sargon"
     JUPITER_SCREEN = 0xC000
@@ -57,7 +74,7 @@ if GRAPHICS:
     for i in range(256):
         data = np.zeros((3*zoom,2*zoom),dtype=np.uint8)
         data.fill(255)
-        for start,end in hp1345_font_data.hp1345_render(chr(i), size=2*zoom, round=True):
+        for start,end in hp1345_font_data.hp1345_render(chr(i), size=2*zoom, round=math.floor):
             cv2.line(data, start, end, 0, 1)
         charset.append(data)
     
@@ -73,11 +90,6 @@ if GRAPHICS:
         blocks.append(data) # cv2.resize(data, (2*zoom,3*zoom), interpolation = cv2.INTER_NEAREST)
 else:
     from getch import getch # pip3 --install py-getch
-
-FILE = "zout/sargon-z80.hex"
-ORG = 0x0000
-START = ORG+0x1a00 
-BLINKER = ORG+0x204C
 
 def hexToMemory(filename,startAddress=0,length=-1,fill=0):
     memory = [None] * 0x10000
@@ -144,8 +156,23 @@ def clearScreen():
             z.memory[JUPITER_SCREEN+i] = 0
     else:
         print(flush=True)
+        
+def updateState(msg):
+    global state
+    s = msg.decode("ascii", "ignore")
+    if 'CARE FOR' in s:
+        state = STATE_ASK_PLAY
+    elif 'LIKE TO ANALYZE' in s:
+        state = STATE_ASK_ANALYZE
+    elif 'DO YOU WANT TO PLAY' in s:
+        state = STATE_ASK_COLOR
+    elif 'LOOK AHEAD' in s:
+        state = STATE_ASK_LEVEL
+    elif 'SARGON' in s:
+        state = STATE_PLAY
             
 def handle38():
+    global state
     addr = getWord(z.sp)
     function1 = z.memory[addr]
     addr = (addr+1) & 0xFFFF
@@ -157,6 +184,7 @@ def handle38():
         length = getWord(addr)
         addr = (addr+2) & 0xFFFF
         pos = msg
+        updateState(getBytes(msg, length))
         while length:
             c = z.memory[pos]
             if c == ord('['):
@@ -176,7 +204,11 @@ def handle38():
         addr = (addr+2) & 0xFFFF
         putCharacter(ord('\n'))
     elif function1 == 0x81 and function2 == 0x00:
-        z._StateBase__af[1] = ord(getch())
+        c = getch()
+        if state == STATE_ASK_ANALYZE and c in ('y','Y'):
+            state = STATE_SETUP
+        z._StateBase__af[1] = ord(c)
+        
     elif function1 == 0x81 and function2 == 0x1A:
         putCharacter(z._StateBase__af[1])
     elif function1 == 0x1F:
@@ -214,7 +246,7 @@ def getImage():
         for col in range(8):
             for row in range(8):
                 chunk = right[12*row:12*(row+1), 12*col:12*(col+1)]
-                cv2.floodFill(chunk,None,(0,0),64 if (col+row) % 2 == 1 else 200)
+                cv2.floodFill(chunk,None,(0,0),64 if chunk[0,0] == 0 else 200)
                 right[12*row:12*(row+1), 12*col:12*(col+1)] = chunk
             
     screen[0:JUPITER_HEIGHT*3*zoom,JUPITER_LEFT_SIDE*2*zoom:JUPITER_WIDTH*2*zoom] = cv2.resize(right, (2*zoom*(JUPITER_WIDTH-JUPITER_LEFT_SIDE),3*zoom*JUPITER_HEIGHT), interpolation = cv2.INTER_NEAREST)

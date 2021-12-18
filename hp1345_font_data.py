@@ -1,3 +1,5 @@
+import math
+
 hp1345_font_data = []
 hp1345_font_data.append([[(0, 0)]])
 hp1345_font_data.append([[(19, 0), (-16, 0), (-3, 3), (0, 21), (3, 3), (11, 0)], [(6, 0), (22, 0), (3, -3), (0, -21), (-3, -3), (-17, 0)], [(-12, 9), (4, 18)], [(-2, -9), (4, 0), (2, -2), (-1, -7)], [(2, -9), (4, 18), (4, 0), (2, -2), (-1, -5), (-2, -2), (-5, 0)], [(30, -9)]])
@@ -256,12 +258,12 @@ hp1345_font_data.append([[(-36, 16), (6, 2), (6, 0), (6, -2), (6, 0), (6, 2)], [
 hp1345_font_data.append([[(0, 16), (3, 2), (6, -2), (3, 2)], [(6, -18)]])
 hp1345_font_data.append([])
 
-def hp1345_render(s, x=0, y=0, size=1., round=False):
+def hp1345_render(s, x=0, y=0, size=1., round=None):
     height = size * 3. / 2
     def scale(p):
         x,y = size*((p[0]-6)/18.)+size/2, height + size*((-(p[1]+7))/18.)-1 
         if round:
-            return int(x), int(y)
+            return round(x), round(y)
         else:
             return x, y
     for c in s:
