@@ -116,7 +116,8 @@ def getch():
             c = keyfeed[0]
             keyfeed = keyfeed[1:]
             return c
-        c = cv2.waitKey(1)
+        c = cv2.waitKeyEx(1)
+        print(c)
         if cv2.getWindowProperty(WINDOW, 0) == -1:
             sys.exit(0)
         if c == 27 and state != STATE_SETUP:
