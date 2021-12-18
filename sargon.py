@@ -20,7 +20,7 @@ try:
                 for e in inputs.get_gamepad():
                     eventList.append(e)
             except inputs.UnpluggedError:
-                time.sleep(0.01)
+                time.sleep(0.5)
     
     gamepadThread = threading.Thread(target=monitorGamepad)
     gamepadThread.daemon = True
@@ -82,28 +82,34 @@ boardCursorY = None
 keyfeed = ''
 moveFrom = True
 
-def mouseClick(event,x,y,flags,param):
+def makeMove(col,row):
     global keyfeed,moveFrom
+    keyfeed += chr(col+ord('a')) + chr(row+ord('1'))
+    if moveFrom:
+        keyfeed += '-'
+    moveFrom = not moveFrom
+
+def mouseClick(event,x,y,flags,param):
     if event == cv2.EVENT_LBUTTONDOWN:
         left = (JUPITER_WIDTH*2-12*8)*ZOOM
         if x >= left:
             col = (x - left) // SQUARE
             row = 7 - y // SQUARE
             if 0 <= col <= 7 and 0 <= row <= 7:
-                keyfeed += chr(col+ord('a')) + chr(row+ord('1'))
-                if moveFrom:
-                    keyfeed += '-'
-                moveFrom = not moveFrom
+                mameMove(col,row)
             
 cv2.namedWindow(WINDOW)
 cv2.setMouseCallback(WINDOW,mouseClick)
 
+def updateScreen():
+    cv2.imshow(WINDOW, getImage())
+
 def getch():
-    global keyfeed
+    global keyfeed, boardCursorX, boardCursorY
     
     if state in OPTIONS and haveGamepad():
         putCharacter(OPTIONS[state][0], advance=False)
-        cv2.imshow(WINDOW, getImage())
+        updateScreen()
     
     while True:
         if keyfeed:
@@ -121,7 +127,29 @@ def getch():
         events = gamepadEvents()
         if events:
             for e in events:
-                if state in OPTIONS:
+                if state == STATE_PLAY:
+                    if boardCursorX == None:
+                        boardCursorX = 3
+                        boardCursorY = 3
+                    if e.code == 'ABS_HAT0X':
+                        if e.state < 0:
+                            boardCursorX -= 1
+                            updateScreen()
+                        elif e.state > 0:
+                            boardCursorX += 1
+                            updateScreen()
+                    elif e.code == 'ABS_HAT0Y':
+                        if e.state < 0:
+                            boardCursorY -= 1
+                            updateScreen()
+                        elif e.state > 0:
+                            boardCursorY += 1
+                            updateScreen()
+                    elif e.code == 'BTN_EAST' and e.state:
+                        makeMove(boardCursorX, 7-boardCursorY)
+                    elif e.code == 'BTN_START' and e.state:
+                        return chr(18)
+                elif state in OPTIONS:
                     options = OPTIONS[state]
                     if e.code == 'ABS_HAT0X' and e.state != 0:
                         current = getCharacter()
@@ -134,7 +162,7 @@ def getch():
                         except:
                             index = 0
                         putCharacter(options[index], advance=False)
-                        cv2.imshow(WINDOW, getImage())
+                        updateScreen()
                     elif e.code == 'BTN_EAST' and e.state:
                         current = getCharacter()
                         if current in options:
@@ -296,6 +324,11 @@ def getImage():
                 x1 = x*HCHAR
                 y1 = y*VCHAR
                 screen[y1:y1+VCHAR, x1:x1+HCHAR] = charset[c]
+                
+    if state == STATE_PLAY and boardCursorX is not None and boardCursorY is not None:
+        x = boardCursorX * SQUARE + JUPITER_LEFT_SIDE*HCHAR + SQUARE // 2
+        y = boardCursorY * SQUARE + SQUARE // 2
+        cv2.circle(screen, (x,y), int(SQUARE * 0.45), 0 if (boardCursorX+boardCursorY)%2 == 0 else 255, 2, cv2.LINE_AA)
 
     return screen
 
@@ -315,7 +348,7 @@ while True:
     z.ticks_to_stop = 200000
     events = z.run()
     if (events & z._BREAKPOINT_HIT) or time.time() >= lastFrame + MINIMUM_COMPUTE_TIME_PER_FRAME:
-        cv2.imshow(WINDOW, getImage())
+        updateScreen()
         if handleBreakpoints():
             break
         cv2.waitKey(1)
