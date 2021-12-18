@@ -65,7 +65,7 @@ if GRAPHICS:
             return ( int(2*zoom*((p[0]-6)/18.)+zoom), int(3*zoom + zoom*((-(p[1]+7))/18.*2)-1) )
         if len(v):
             pos = (0,0)
-            for stroke in v:
+            for stroke in v[:-1]:
                 for j in range(0,len(stroke)):
                     pos1 = (pos[0]+stroke[j][0],pos[1]+stroke[j][1])
                     if j != 0: 

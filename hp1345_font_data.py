@@ -255,3 +255,25 @@ hp1345_font_data.append([[(0, 0), (0, 18)], [(0, -9), (12, 0)], [(6, -9)]])
 hp1345_font_data.append([[(-36, 16), (6, 2), (6, 0), (6, -2), (6, 0), (6, 2)], [(6, -18)]])
 hp1345_font_data.append([[(0, 16), (3, 2), (6, -2), (3, 2)], [(6, -18)]])
 hp1345_font_data.append([])
+
+def hp1345_render(s, x=0, y=0, size=1.):
+    height = size * 3. / 2
+    def scale(p):
+        return ( size*((p[0]-6)/18.)+size/2, height + size*((-(p[1]+7))/18.)-1 )
+    for c in s:
+        if i != '_':
+            v = hp1345_font_data[ord(c)]
+        else:
+            v = [ [(-18,-6),(36,0)], [(0,0)] ]
+        if len(v):
+            pos = (x,y)
+            for stroke in v[:-1]:
+                for j in range(0,len(stroke)):
+                    pos1 = (pos[0]+stroke[j][0],pos[1]+stroke[j][1])
+                    if j != 0:
+                        yield(scale(pos),scale(pos1))
+                    pos = pos1
+        x += size
+    
+    
+    
