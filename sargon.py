@@ -337,7 +337,7 @@ def handleBreakpoints():
     elif z.pc == 0x38:
         return handle38()
     elif z.pc == BLINKER:
-        time.sleep(0.01)
+        time.sleep(0.002)
     else:
         return False    
 
