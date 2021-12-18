@@ -120,7 +120,15 @@ def getch():
         if cv2.getWindowProperty(WINDOW, 0) == -1:
             sys.exit(0)
         if c == 27 and state != STATE_SETUP:
+            if state in OPTIONS and ord('n') in OPTIONS[state]:
+                return 'n'
             c = 18
+        if (c == 10 or c == 13) and state in OPTIONS and ord('n') in OPTIONS[state]:
+            pressed = getCharacter() 
+            if pressed in OPTIONS[state]:
+                return chr(pressed)
+            else:
+                return 'y'
         if c >= 0:
             return chr(c)
         
