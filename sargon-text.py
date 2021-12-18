@@ -1,9 +1,9 @@
-import z80 # pip3 --install z80, but modified to make af visible
+import z80 # pip3 install z80, but modified to make af visible
 import binascii
 import time
 import sys
 import readhex
-from getch import getch # pip3 --install py-getch
+from getch import getch # pip3 install py-getch
 
 FILE = "zout/sargon-z80.hex"
 ORG = 0x0000
@@ -33,7 +33,6 @@ def clearScreen():
     print(flush=True)
         
 def handle38():
-    global state
     addr = getWord(z.sp)
     function1 = z.memory[addr]
     addr = (addr+1) & 0xFFFF
@@ -65,8 +64,6 @@ def handle38():
         putCharacter(ord('\n'))
     elif function1 == 0x81 and function2 == 0x00:
         c = getch()
-        if state == STATE_ASK_ANALYZE and c in ('y','Y'):
-            state = STATE_SETUP
         z._StateBase__af[1] = ord(c)
         
     elif function1 == 0x81 and function2 == 0x1A:
