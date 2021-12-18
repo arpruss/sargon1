@@ -39,7 +39,7 @@ except ImportError:
     def haveGamepad(): return False
 
 MINIMUM_COMPUTE_TIME_PER_FRAME = 1. / 5
-ZOOM = 6
+ZOOM = 10
 FLOODFILL = True
 WINDOW = "Sargon"
 
@@ -183,7 +183,10 @@ for i in range(256):
     data = np.zeros((VCHAR,HCHAR),dtype=np.uint8)
     data.fill(255)
     for start,end in hp1345.hp1345_render(chr(i), width=HCHAR, round=round, dotSize=0):
-        cv2.line(data, start, end, 0, 1)
+        if ZOOM>8:
+            cv2.line(data, start, end, 0, 2, cv2.LINE_AA)
+        else:
+            cv2.line(data, start, end, 0, 1)
     charset.append(data)
 
 blocks = []
