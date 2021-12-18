@@ -96,7 +96,7 @@ def mouseClick(event,x,y,flags,param):
             col = (x - left) // SQUARE
             row = 7 - y // SQUARE
             if 0 <= col <= 7 and 0 <= row <= 7:
-                mameMove(col,row)
+                makeMove(col,row)
             
 cv2.namedWindow(WINDOW)
 cv2.setMouseCallback(WINDOW,mouseClick)
