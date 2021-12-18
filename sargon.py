@@ -188,9 +188,9 @@ def handle38():
         addr = (addr+2) & 0xFFFF
         putCharacter(ord('\n'))
     elif function1 == 0x81 and function2 == 0x00:
-        z.af = (z.af & 0xFF) | (ord(getch()) << 8)
+        z._StateBase__af[1] = ord(getch())
     elif function1 == 0x81 and function2 == 0x1A:
-        putCharacter(z.af>>8)
+        putCharacter(z._StateBase__af[1])
     elif function1 == 0x1F:
         print("[done]")
         return True
