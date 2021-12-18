@@ -266,7 +266,10 @@ def hp1345_render(s, x=0, y=0, size=1., round=False):
             return x, y
     for c in s:
         if c != '_':
-            v = hp1345_font_data[ord(c)]
+            try:
+                v = hp1345_font_data[ord(c)]
+            except:
+                v = []
         else:
             v = [ [(-18,-6),(36,0)], [(0,0)] ]
         if len(v):
