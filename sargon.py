@@ -8,6 +8,36 @@ import hp1345
 import readhex
 import math
 
+try:
+    import inputs
+    import threading
+    
+    eventList = []
+    
+    def monitorGamepad():
+        while True:
+            try:
+                for e in inputs.get_gamepad():
+                    eventList.append(e)
+            except inputs.UnpluggedError:
+                time.sleep(0.01)
+    
+    gamepadThread = threading.Thread(target=monitorGamepad)
+    gamepadThread.daemon = True
+    gamepadThread.start()
+    
+    def gamepadEvents():
+        copy = eventList[:]
+        eventList.clear()
+        return copy
+        
+    def haveGamepad():
+        return len(inputs.devices.gamepads)>0
+        
+except ImportError:
+    def gamepadEvents(): return []
+    def haveGamepad(): return False
+
 MINIMUM_COMPUTE_TIME_PER_FRAME = 1. / 5
 ZOOM = 6
 FLOODFILL = True
@@ -20,6 +50,13 @@ STATE_ASK_ANALYZE = 3
 STATE_PLAY = 4
 STATE_END_PLAY = 5
 STATE_SETUP = 6
+
+OPTIONS = {
+    STATE_ASK_PLAY: (ord('y'),ord('n')),
+    STATE_ASK_COLOR: (ord('w'),ord('b')),
+    STATE_ASK_LEVEL: (ord('1'),ord('2'),ord('3'),ord('4'),ord('5'),ord('6')),
+    STATE_ASK_ANALYZE: (ord('y'),ord('n'))
+}
 
 FILE = "zout/sargon-z80.hex"
 ORG = 0x0000
@@ -38,6 +75,9 @@ SQUARE = ZOOM*12
 
 cursorX = 0
 cursorY = 0
+
+boardCursorX = None
+boardCursorY = None
 
 keyfeed = ''
 moveFrom = True
@@ -60,6 +100,11 @@ cv2.setMouseCallback(WINDOW,mouseClick)
 
 def getch():
     global keyfeed
+    
+    if state in OPTIONS and haveGamepad():
+        putCharacter(OPTIONS[state][0], advance=False)
+        cv2.imshow(WINDOW, getImage())
+    
     while True:
         if keyfeed:
             c = keyfeed[0]
@@ -68,9 +113,34 @@ def getch():
         c = cv2.waitKey(1)
         if cv2.getWindowProperty(WINDOW, 0) == -1:
             sys.exit(0)
+        if c == 27 and state != STATE_SETUP:
+            c = 18
         if c >= 0:
             return chr(c)
-    
+        
+        events = gamepadEvents()
+        if events:
+            for e in events:
+                if state in OPTIONS:
+                    options = OPTIONS[state]
+                    if e.code == 'ABS_HAT0X' and e.state != 0:
+                        current = getCharacter()
+                        try:
+                            index = options.index(current)
+                            if e.state < 0:
+                                index = (len(options)+index-1) % len(options)
+                            else:
+                                index = (index+1) % len(options)
+                        except:
+                            index = 0
+                        putCharacter(options[index], advance=False)
+                        cv2.imshow(WINDOW, getImage())
+                    elif e.code == 'BTN_EAST' and e.state:
+                        current = getCharacter()
+                        if current in options:
+                            return chr(current)
+                    elif e.code == 'BTN_SOUTH' and e.state and ord('n') in options:
+                        return 'n'
 charset = []
 
 for i in range(256):
@@ -104,14 +174,19 @@ def getBytes(address,count):
         data[i] = z.memory[(address+i)&0xFFFF]
     return data
     
-def putCharacter(c):
+def putCharacter(c, advance=True):
     global cursorX, cursorY
     if c == ord('\n'):
-        cursorY += 1
-        cursorX = 0
+        if advance:
+            cursorY += 1
+            cursorX = 0
     else:
         z.memory[JUPITER_SCREEN+cursorY*JUPITER_WIDTH+cursorX] = c
-        cursorX += 1
+        if advance:
+            cursorX += 1
+            
+def getCharacter():
+    return z.memory[JUPITER_SCREEN+cursorY*JUPITER_WIDTH+cursorX]
 
 def clearScreen():            
     global cursorX, cursorY
@@ -209,7 +284,7 @@ def getImage():
         for col in range(8):
             for row in range(8):
                 chunk = right[12*row:12*(row+1), 12*col:12*(col+1)]
-                cv2.floodFill(chunk,None,(0,0),64 if chunk[0,0] == 0 else 200)
+                cv2.floodFill(chunk,None,(0,0),64 if chunk[0,0] == 0 else 192)
                 right[12*row:12*(row+1), 12*col:12*(col+1)] = chunk
             
     screen[0:JUPITER_HEIGHT*VCHAR,JUPITER_LEFT_SIDE*HCHAR:JUPITER_WIDTH*HCHAR] = cv2.resize(right, (HCHAR*(JUPITER_WIDTH-JUPITER_LEFT_SIDE),VCHAR*JUPITER_HEIGHT), interpolation = cv2.INTER_NEAREST)
@@ -240,9 +315,7 @@ while True:
     z.ticks_to_stop = 200000
     events = z.run()
     if (events & z._BREAKPOINT_HIT) or time.time() >= lastFrame + MINIMUM_COMPUTE_TIME_PER_FRAME:
-        t = time.time()
-        image = getImage()
-        cv2.imshow(WINDOW, image)
+        cv2.imshow(WINDOW, getImage())
         if handleBreakpoints():
             break
         cv2.waitKey(1)
