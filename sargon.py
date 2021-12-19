@@ -121,19 +121,19 @@ def getch():
                 boardCursorX = 3
                 boardCursorY = 3
             if c in KEY_LEFT:
-                boardCursorX = (boardCursor + 7) % 8
+                boardCursorX = (boardCursorX + 7) % 8
                 updateScreen()
                 c = -1
             elif c in KEY_RIGHT:
-                boardCursorX = (boardCursor + 1) % 8
+                boardCursorX = (boardCursorX + 1) % 8
                 updateScreen()
                 c = -1
             elif c in KEY_UP:
-                boardCursorY = (boardCursor + 7) % 8
+                boardCursorY = (boardCursorY + 7) % 8
                 updateScreen()
                 c = -1
             elif c in KEY_DOWN:
-                boardCursorY = (boardCursor + 1) % 8
+                boardCursorY = (boardCursorY + 1) % 8
                 updateScreen()
                 c = -1
             elif c in KEY_SELECT:
