@@ -121,19 +121,19 @@ def getch():
                 boardCursorX = 3
                 boardCursorY = 3
             if c in KEY_LEFT:
-                boardCursorX -= 1
+                boardCursorX = (boardCursor + 7) % 8
                 updateScreen()
                 c = -1
             elif c in KEY_RIGHT:
-                boardCursorX += 1
+                boardCursorX = (boardCursor + 1) % 8
                 updateScreen()
                 c = -1
             elif c in KEY_UP:
-                boardCursorY -= 1
+                boardCursorY = (boardCursor + 7) % 8
                 updateScreen()
                 c = -1
             elif c in KEY_DOWN:
-                boardCursorY += 1
+                boardCursorY = (boardCursor + 1) % 8
                 updateScreen()
                 c = -1
             elif c in KEY_SELECT:
@@ -206,6 +206,8 @@ def putCharacter(c, advance=True):
         if advance:
             cursorY += 1
             cursorX = 0
+            if cursorY >= JUPITER_HEIGHT:
+                cursorY = JUPITER_HEIGHT - 1
     else:
         z.memory[JUPITER_SCREEN+cursorY*JUPITER_WIDTH+cursorX] = c
         if advance:
