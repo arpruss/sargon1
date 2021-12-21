@@ -1,4 +1,4 @@
-import z80 # pip3 --install z80, but modified to make af visible
+import z80 # https://github.com/arpruss/z80
 import binascii
 import time
 import sys
@@ -273,10 +273,10 @@ def handle38():
         c = getch()
         if state == STATE_ASK_ANALYZE and c in ('y','Y'):
             state = STATE_SETUP
-        z._StateBase__af[1] = ord(c)
+        z.a = ord(c)
         
     elif function1 == 0x81 and function2 == 0x1A:
-        putCharacter(z._StateBase__af[1])
+        putCharacter(z.a)
     elif function1 == 0x1F:
         print("[done]")
         return True
@@ -335,7 +335,7 @@ def getImage():
 def handleBreakpoints():
     if z.pc == 0x00:
         print("[reset]")
-        return true
+        return True
     elif z.pc == 0x38:
         return handle38()
     elif z.pc == BLINKER:

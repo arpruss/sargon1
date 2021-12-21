@@ -1,4 +1,4 @@
-import z80 # pip3 install z80, but modified to make af visible
+import z80 # https://github.com/arpruss/z80
 import binascii
 import time
 import sys
@@ -64,10 +64,9 @@ def handle38():
         putCharacter(ord('\n'))
     elif function1 == 0x81 and function2 == 0x00:
         c = getch()
-        z._StateBase__af[1] = ord(c)
-        
+        z.a = ord(c)
     elif function1 == 0x81 and function2 == 0x1A:
-        putCharacter(z._StateBase__af[1])
+        putCharacter(z.a)
     elif function1 == 0x1F:
         print("[done]")
         return True
@@ -81,13 +80,14 @@ def handle38():
 z = z80.Z80Machine()
 z.set_memory_block(0, readhex.hexToMemory(FILE))
 z.set_breakpoint(0x38)
+z.clear_breakpoint(0x38)
 z.set_breakpoint(0x00)
 z.pc = START
 
 def handleBreakpoints():
     if z.pc == 0x00:
         print("[reset]")
-        return true
+        return True
     elif z.pc == 0x38:
         return handle38()
     else:
