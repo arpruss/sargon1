@@ -41,6 +41,8 @@ locations = readlst.getSymbols(LSTFILE)
 START = locations['DRIVER']
 BLINKER = locations['BL10']-3
 BOARD = locations['BOARDA']
+ANBDPS = locations['ANBDPS']
+
 if CHECK_FOR_COMPUTER_REPEATS:
     COMPUTER_MOVE = locations['CPTRMV'] 
     AFTER_MOVE = locations['CP0C']+6 
@@ -345,11 +347,21 @@ def getImage():
                 y1 = y*VCHAR
                 screen[y1:y1+VCHAR, x1:x1+HCHAR] = charset[c]
                 
+    x = None
+    
     if state == STATE_PLAY and boardCursorX is not None and boardCursorY is not None and usedArrows:
-        x = boardCursorX * SQUARE + JUPITER_LEFT_SIDE*HCHAR + SQUARE // 2
-        y = boardCursorY * SQUARE + SQUARE // 2
-        cv2.circle(screen, (x,y), int(SQUARE * 0.45), 0 if (boardCursorX+boardCursorY)%2 == 0 else 255, 2, cv2.LINE_AA)
+        x = boardCursorX 
+        y = boardCursorY 
+        
+    if state == STATE_SETUP and z.memory[ANBDPS]:
+        x = (z.memory[ANBDPS] % 10) - 1
+        y = 7 - ((z.memory[ANBDPS] // 10) - 2)
 
+    if x is not None:
+        x = x * SQUARE + JUPITER_LEFT_SIDE*HCHAR + SQUARE // 2
+        y = y * SQUARE + SQUARE // 2
+        cv2.circle(screen, (x,y), int(SQUARE * 0.45), 0 if (x+y)%2 == 0 else 255, 2, cv2.LINE_AA)
+        
     return screen
 
 def handleBreakpoints():

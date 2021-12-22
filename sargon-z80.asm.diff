@@ -1,5 +1,5 @@
 --- sargon-z80.asm.orig	2021-12-16 11:10:33.352152900 -0600
-+++ sargon-z80.asm	2021-12-15 14:18:13.388149900 -0600
++++ sargon-z80.asm	2021-12-22 09:38:48.044036500 -0600
 @@ -2034,7 +2034,7 @@
  ;               piece on its own color square is produced
  ;               by moving in a kernel of 6 blocks.
@@ -18,3 +18,39 @@
          DB      $A8,$BF,$BD,$80
          DB      $82,$AF,$87,$80
          DB      $82,$83,$83,$80
+@@ -2894,11 +2894,31 @@
+ AN19:   LD      a,(ANBDPS)      ; Current board position
+         INC     a               ; Next
+         CP      99              ; Done ?
+-        JR      NZ,AN08         ; No - jump
+-        JR      AN04            ; Jump
++        JR      Z,AN04          ; Wrap around
++        LD      c,a             ; Save position
++        LD      d,a             ; Check position modulo 10
++        XOR     a
++        LD      e,10
++        call    DIVIDE
++        CP      9               ; Is it in the right border?
++        LD      a,c             ; Restore position
++        JR      NZ,AN08         ; If not in right border, continue
++        INC     a               ; Skip border
++        INC     a               
++        JR      AN08            ; Jump
+ AN1A:   LD      a,(ANBDPS)      ; Prepare to go back a square
+-        SUB     3               ; To get around border
+-        CP      20              ; Off the other end ?
++        DEC     a
++        LD      c,a             ; Save position
++        LD      d,a             ; Check position modulo 10
++        XOR     a
++        LD      e,10
++        CALL    DIVIDE
++        OR      a               ; Is it in the left border?
++        LD      a,c             ; Restore position
++        JR      NZ,NOTBRD       ; If not in left border, continue
++        DEC     a               ; Skip border
++        DEC     a
++NOTBRD: CP      20              ; Off the other end ?
+         JP      NC,AN08         ; No - jump
+         LD      a,98            ; Wrap around to top of screen
+ AN0B:   JP      AN08            ; Jump
