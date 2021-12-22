@@ -3,12 +3,13 @@ import binascii
 import time
 import sys
 import readhex
+import readlst
 from getch import getch # pip3 install py-getch
 
-FILE = "zout/sargon-z80.hex"
-ORG = 0x0000
-START = ORG+0x1a00 
-BLINKER = ORG+0x204C
+HEXFILE = "zout/sargon-z80.hex"
+LSTFILE = "zout/sargon-z80.lst"
+locations = readlst.getSymbols(LSTFILE)
+START = locations['DRIVER']
 
 def getWord(address):
     return z.memory[address] | (z.memory[(address+1) & 0xFFFF] << 8)
@@ -78,9 +79,8 @@ def handle38():
     return False
 
 z = z80.Z80Machine()
-z.set_memory_block(0, readhex.hexToMemory(FILE))
+z.set_memory_block(0, readhex.hexToMemory(HEXFILE))
 z.set_breakpoint(0x38)
-z.clear_breakpoint(0x38)
 z.set_breakpoint(0x00)
 z.pc = START
 

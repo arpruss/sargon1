@@ -6,6 +6,7 @@ import cv2
 import numpy as np
 import hp1345
 import readhex
+import readlst
 import math
         
 def gamepadEvents(): return []
@@ -32,18 +33,21 @@ OPTIONS = {
     STATE_ASK_ANALYZE: (ord('y'),ord('n'))
 }
 
-FILE = "zout/sargon-z80.hex"
-ORG = 0x0000
-START = ORG+0x1a00   # DRIVER+0
-BLINKER = ORG+0x204C # BL10-3
-BOARD = ORG+0x00B4   # BOARDA
+HEXFILE = "zout/sargon-z80.hex"
+LSTFILE = "zout/sargon-z80.lst"
+
+locations = readlst.getSymbols(LSTFILE)
+
+START = locations['DRIVER']
+BLINKER = locations['BL10']-3
+BOARD = locations['BOARDA']
 if CHECK_FOR_COMPUTER_REPEATS:
-    COMPUTER_MOVE = ORG+0x1B21 # CPTRMV
-    AFTER_MOVE = ORG+0x1B3C # CP0C+6
-    POINTS = ORG+0x1011
-    POINTS_END = ORG+0x1157 # rel016
-    COMPUTER_COLOR = ORG+0x0020 # KOLOR
-    CURRENT_COLOR = ORG+0x0021 # COLOR
+    COMPUTER_MOVE = locations['CPTRMV'] 
+    AFTER_MOVE = locations['CP0C']+6 
+    POINTS = locations['POINTS'] 
+    POINTS_END = locations['rel016'] 
+    COMPUTER_COLOR = locations['KOLOR'] 
+    CURRENT_COLOR = locations['COLOR'] 
 
 state = STATE_ASK_PLAY
 repeatRun = False
@@ -108,13 +112,13 @@ def getch():
             c = keyfeed[0]
             keyfeed = keyfeed[1:]
             return c
+        if cv2.getWindowProperty(WINDOW, 0) == -1:
+            sys.exit(0)
         c = cv2.waitKeyEx(1)
         if c < 0:
             continue
         if not usedArrows and c in KEY_ARROWS:
             usedArrows = True
-        if cv2.getWindowProperty(WINDOW, 0) == -1:
-            sys.exit(0)
         if c == 27 and state != STATE_SETUP:
             if state in OPTIONS and ord('n') in OPTIONS[state]:
                 return 'n'
@@ -222,7 +226,7 @@ def putCharacter(c, advance=True):
         z.memory[JUPITER_SCREEN+cursorY*JUPITER_WIDTH+cursorX] = c
         if advance:
             cursorX += 1
-            
+                        
 def getCharacter():
     return z.memory[JUPITER_SCREEN+cursorY*JUPITER_WIDTH+cursorX]
 
@@ -301,7 +305,7 @@ def handle38():
     return False
 
 z = z80.Z80Machine()
-z.set_memory_block(0, readhex.hexToMemory(FILE))
+z.set_memory_block(0, readhex.hexToMemory(HEXFILE))
 z.set_breakpoint(0x38)
 z.set_breakpoint(0x00)
 z.set_breakpoint(BLINKER) 
@@ -363,11 +367,10 @@ def handleBreakpoints():
             count = computerHistory.count(board)
             if count >= 2:
                 if repeatRun:
-                    print("Third repeat!")
+                    print("I declare a draw!")
                     z.clear_breakpoint(POINTS)
                     repeatRun = False
                 else:
-                    print("Recalculating")
                     z.set_breakpoint(POINTS)
                     z.pc = COMPUTER_MOVE
                     repeatRun = True
