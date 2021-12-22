@@ -14,6 +14,7 @@ def haveGamepad(): return False
 MINIMUM_COMPUTE_TIME_PER_FRAME = 1. / 5
 ZOOM = 10
 FLOODFILL = True
+CHECK_FOR_COMPUTER_REPEATS = True
 WINDOW = "Sargon"
 
 STATE_ASK_PLAY = 0
@@ -33,10 +34,19 @@ OPTIONS = {
 
 FILE = "zout/sargon-z80.hex"
 ORG = 0x0000
-START = ORG+0x1a00 
-BLINKER = ORG+0x204C
+START = ORG+0x1a00   # DRIVER+0
+BLINKER = ORG+0x204C # BL10-3
+BOARD = ORG+0x00B4   # BOARDA
+if CHECK_FOR_COMPUTER_REPEATS:
+    COMPUTER_MOVE = ORG+0x1B21 # CPTRMV
+    AFTER_MOVE = ORG+0x1B3C # CP0C+6
+    POINTS = ORG+0x1011
+    POINTS_END = ORG+0x1157 # rel016
+    COMPUTER_COLOR = ORG+0x0020 # KOLOR
+    CURRENT_COLOR = ORG+0x0021 # COLOR
 
 state = STATE_ASK_PLAY
+repeatRun = False
 
 JUPITER_SCREEN = 0xC000
 JUPITER_WIDTH = 64
@@ -224,7 +234,7 @@ def clearScreen():
         z.memory[JUPITER_SCREEN+i] = 0
         
 def updateState(msg):
-    global state
+    global state, computerHistory
     s = msg.decode("ascii", "ignore")
     if 'CARE FOR' in s:
         state = STATE_ASK_PLAY
@@ -236,6 +246,9 @@ def updateState(msg):
         state = STATE_ASK_LEVEL
     elif 'SARGON' in s:
         state = STATE_PLAY
+    if CHECK_FOR_COMPUTER_REPEATS and state != STATE_PLAY:
+        computerHistory = []
+        repeatRun = False
             
 def handle38():
     global state
@@ -292,6 +305,9 @@ z.set_memory_block(0, readhex.hexToMemory(FILE))
 z.set_breakpoint(0x38)
 z.set_breakpoint(0x00)
 z.set_breakpoint(BLINKER) 
+if CHECK_FOR_COMPUTER_REPEATS:
+    #z.set_breakpoint(COMPUTER_MOVE)
+    z.set_breakpoint(AFTER_MOVE)
 z.pc = START
 
 def getImage():
@@ -333,6 +349,7 @@ def getImage():
     return screen
 
 def handleBreakpoints():
+    global repeatRun
     if z.pc == 0x00:
         print("[reset]")
         return True
@@ -340,8 +357,30 @@ def handleBreakpoints():
         return handle38()
     elif z.pc == BLINKER:
         time.sleep(0.002)
+    elif CHECK_FOR_COMPUTER_REPEATS:
+        if z.pc == AFTER_MOVE:
+            board = bytes(z.memory[BOARD:BOARD+120])
+            count = computerHistory.count(board)
+            if count >= 2:
+                if repeatRun:
+                    print("Third repeat!")
+                    z.clear_breakpoint(POINTS)
+                    repeatRun = False
+                else:
+                    print("Recalculating")
+                    z.set_breakpoint(POINTS)
+                    z.pc = COMPUTER_MOVE
+                    repeatRun = True
+            if z.pc == AFTER_MOVE:
+                computerHistory.append(board)
+        elif z.pc == POINTS:
+            board = bytes(z.memory[BOARD:BOARD+120])
+            if z.memory[COMPUTER_COLOR] == z.memory[CURRENT_COLOR] and computerHistory.count(board) >= 2:
+                z.a = 0
+                z.pc = POINTS_END
     else:
-        return False    
+        history.append(board)
+    return False    
 
 lastFrame = 0
 while True:

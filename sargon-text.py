@@ -90,8 +90,7 @@ def handleBreakpoints():
         return True
     elif z.pc == 0x38:
         return handle38()
-    else:
-        return False    
+    return False    
 
 while True:
     events = z.run()
