@@ -404,6 +404,7 @@ def handleBreakpoints():
                     z.clear_breakpoint(POINTS)
                     repeatRun = False
                 else:
+                    print("recomputing to avoid draw")
                     z.set_breakpoint(POINTS)
                     z.pc = COMPUTER_MOVE
                     repeatRun = True
