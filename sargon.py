@@ -24,13 +24,22 @@ STATE_ASK_LEVEL = 2
 STATE_ASK_ANALYZE = 3
 STATE_PLAY = 4
 STATE_END_PLAY = 5
-STATE_SETUP = 6
+STATE_ANALYSIS0 = 0x10
+STATE_ANALYSIS1 = 0x11
+STATE_ANALYSIS2 = 0x12
+STATE_ANALYSIS3 = 0x13
+STATE_ANALYSIS4 = 0x14
+STATE_ANALYSIS5 = 0x15
+MASK_ANALYSIS = 0x10
 
 OPTIONS = {
     STATE_ASK_PLAY: (ord('y'),ord('n')),
     STATE_ASK_COLOR: (ord('w'),ord('b')),
     STATE_ASK_LEVEL: (ord('1'),ord('2'),ord('3'),ord('4'),ord('5'),ord('6')),
-    STATE_ASK_ANALYZE: (ord('y'),ord('n'))
+    STATE_ASK_ANALYZE: (ord('y'),ord('n')),
+    STATE_ANALYSIS1: tuple(map(ord,'kqrbnp.')),
+    STATE_ANALYSIS3: (ord('w'),ord('b')),
+    STATE_ANALYSIS5: (ord('1'),ord('0'))
 }
 
 HEXFILE = "zout/sargon-z80.hex"
@@ -103,7 +112,10 @@ def updateScreen():
     cv2.imshow(WINDOW, getImage())
 
 def getch():
-    global keyfeed, boardCursorX, boardCursorY, usedArrows
+    global keyfeed, boardCursorX, boardCursorY, usedArrows, state
+    
+    if state & MASK_ANALYSIS:
+        state += 1
     
     if state in OPTIONS:
         putCharacter(OPTIONS[state][0], advance=False)
@@ -121,11 +133,11 @@ def getch():
             continue
         if not usedArrows and c in KEY_ARROWS:
             usedArrows = True
-        if c == 27 and state != STATE_SETUP:
+        if c == 27 and state & MASK_ANALYSIS == 0:
             if state in OPTIONS and ord('n') in OPTIONS[state]:
                 return 'n'
             c = 18
-        if c in KEY_SELECT and state in OPTIONS and ord('n') in OPTIONS[state]:
+        if c in KEY_SELECT and state in OPTIONS and ord('n') in OPTIONS[state] and len(OPTIONS[state]) == 2:
             pressed = getCharacter() 
             if pressed in OPTIONS[state]:
                 return chr(pressed)
@@ -157,11 +169,16 @@ def getch():
                 c = -1
         elif state in OPTIONS:
             options = OPTIONS[state]
-            if c in KEY_LEFT+KEY_RIGHT:
+            if state == STATE_ANALYSIS1 and c in KEY_LEFT+KEY_RIGHT:
+                if c in KEY_LEFT:
+                    return '\x08'
+                else:
+                    return '\n'
+            elif c in KEY_DOWN+KEY_UP:
                 current = getCharacter()
                 try:
                     index = options.index(current)
-                    if c in KEY_LEFT:
+                    if c in KEY_DOWN:
                         index = (len(options)+index-1) % len(options)
                     else:
                         index = (index+1) % len(options)
@@ -170,11 +187,13 @@ def getch():
                 putCharacter(options[index], advance=False)
                 updateScreen()
                 c = -1
-            elif c in KEY_SELECT:
+            elif c in KEY_SELECT and (state & MASK_ANALYSIS == 0 or usedArrows):
                 current = getCharacter()
                 if current in options:
+                    if (state == STATE_ANALYSIS1 and current != ord('.')) or state == STATE_ANALYSIS3:
+                        keyfeed = '\n' 
                     return chr(current)
-            elif c == 27 and ord('n') in options:
+            elif c == 27 and (ord('n') in options and (state & MASK_ANALYSIS == 0)):
                 return 'n'
 
         if c >= 0 and c < 0x100:
@@ -246,7 +265,7 @@ def updateState(msg):
         state = STATE_ASK_PLAY
     elif 'LIKE TO ANALYZE' in s:
         state = STATE_ASK_ANALYZE
-    elif 'DO YOU WANT TO PLAY' in s:
+    elif 'DO YOU WANT TO PLAY' in s or 'WHOSE MOVE' in s:
         state = STATE_ASK_COLOR
     elif 'LOOK AHEAD' in s:
         state = STATE_ASK_LEVEL
@@ -291,7 +310,7 @@ def handle38():
     elif function1 == 0x81 and function2 == 0x00:
         c = getch()
         if state == STATE_ASK_ANALYZE and c in ('y','Y'):
-            state = STATE_SETUP
+            state = STATE_ANALYSIS0
         z.a = ord(c)
         
     elif function1 == 0x81 and function2 == 0x1A:
@@ -353,7 +372,7 @@ def getImage():
         x = boardCursorX 
         y = boardCursorY 
         
-    if state == STATE_SETUP and z.memory[ANBDPS]:
+    if (state & MASK_ANALYSIS) and z.memory[ANBDPS]:
         x = (z.memory[ANBDPS] % 10) - 1
         y = 7 - ((z.memory[ANBDPS] // 10) - 2)
 
@@ -365,13 +384,15 @@ def getImage():
     return screen
 
 def handleBreakpoints():
-    global repeatRun
+    global repeatRun, state
     if z.pc == 0x00:
         print("[reset]")
         return True
     elif z.pc == 0x38:
         return handle38()
     elif z.pc == BLINKER:
+        if state & MASK_ANALYSIS:
+            state = STATE_ANALYSIS0
         time.sleep(0.002)
     elif CHECK_FOR_COMPUTER_REPEATS:
         if z.pc == AFTER_MOVE:
