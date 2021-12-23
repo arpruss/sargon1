@@ -243,7 +243,7 @@ def putCharacter(c, advance=True):
             cursorX = 0
             if cursorY >= JUPITER_HEIGHT:
                 cursorY = JUPITER_HEIGHT - 1
-    else:
+    elif c >= 32:
         z.memory[JUPITER_SCREEN+cursorY*JUPITER_WIDTH+cursorX] = c
         if advance:
             cursorX += 1
@@ -261,7 +261,7 @@ def clearScreen():
 def updateState(msg):
     global state, computerHistory
     s = msg.decode("ascii", "ignore")
-    if 'CARE FOR' in s:
+    if 'CARE FOR' in s or 'IS THIS RIGHT' in s:
         state = STATE_ASK_PLAY
     elif 'LIKE TO ANALYZE' in s:
         state = STATE_ASK_ANALYZE
