@@ -58,7 +58,7 @@ if CHECK_FOR_COMPUTER_REPEATS:
     COMPUTER_MOVE = locations['CPTRMV'] 
     AFTER_MOVE = locations['CP0C']+3
     POINTS = locations['POINTS'] 
-    POINTS_END = locations['rel016'] 
+    POINTS_END = locations['rel016']-1
     COMPUTER_COLOR = locations['KOLOR'] 
     CURRENT_COLOR = locations['COLOR'] 
     UNMOVE = locations['UNMOVE']
@@ -338,6 +338,8 @@ z.set_breakpoint(0x38)
 z.set_breakpoint(0x00)
 z.set_breakpoint(locations['BOOK'])
 z.set_breakpoint(BLINKER) 
+z.set_breakpoint(POINTS_END)
+
 if CHECK_FOR_COMPUTER_REPEATS:
     #z.set_breakpoint(COMPUTER_MOVE)
     z.set_breakpoint(AFTER_MOVE)
@@ -431,7 +433,7 @@ def handleBreakpoints():
         elif z.pc == POINTS:
             board = bytes(z.memory[BOARD:BOARD+120])
             if z.memory[COMPUTER_COLOR] == z.memory[CURRENT_COLOR] and computerHistory.count(board) >= 2:
-                z.a = 0
+                z.a = 1
                 z.pc = POINTS_END
     return False    
 
