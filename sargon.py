@@ -431,7 +431,6 @@ def handleBreakpoints():
         elif z.pc == POINTS:
             board = bytes(z.memory[BOARD:BOARD+120])
             if z.memory[COMPUTER_COLOR] == z.memory[CURRENT_COLOR] and computerHistory.count(board) >= 2:
-                print("zero")
                 z.a = 0
                 z.pc = POINTS_END
     return False    
