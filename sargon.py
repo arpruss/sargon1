@@ -24,6 +24,7 @@ STATE_ASK_LEVEL = 2
 STATE_ASK_ANALYZE = 3
 STATE_PLAY = 4
 STATE_END_PLAY = 5
+STATE_ANALYZE_ASK_FINISH = 6
 STATE_ANALYSIS0 = 0x10
 STATE_ANALYSIS1 = 0x11
 STATE_ANALYSIS2 = 0x12
@@ -34,6 +35,7 @@ MASK_ANALYSIS = 0x10
 
 OPTIONS = {
     STATE_ASK_PLAY: (ord('y'),ord('n')),
+    STATE_ANALYZE_ASK_FINISH: (ord('y'),ord('n')),
     STATE_ASK_COLOR: (ord('w'),ord('b')),
     STATE_ASK_LEVEL: (ord('1'),ord('2'),ord('3'),ord('4'),ord('5'),ord('6')),
     STATE_ASK_ANALYZE: (ord('y'),ord('n')),
@@ -173,7 +175,7 @@ def getch():
                 if c in KEY_LEFT:
                     return '\x08'
                 else:
-                    return '\n'
+                    return '\r'
             elif c in KEY_DOWN+KEY_UP:
                 current = getCharacter()
                 try:
@@ -191,7 +193,7 @@ def getch():
                 current = getCharacter()
                 if current in options:
                     if (state == STATE_ANALYSIS1 and current != ord('.')) or state == STATE_ANALYSIS3:
-                        keyfeed = '\n' 
+                        keyfeed = '\r' 
                     return chr(current)
             elif c == 27 and (ord('n') in options and (state & MASK_ANALYSIS == 0)):
                 return 'n'
@@ -261,8 +263,10 @@ def clearScreen():
 def updateState(msg):
     global state, computerHistory
     s = msg.decode("ascii", "ignore")
-    if 'CARE FOR' in s or 'IS THIS RIGHT' in s:
+    if 'CARE FOR' in s:
         state = STATE_ASK_PLAY
+    elif 'IS THIS RIGHT' in s:
+        state = STATE_ANALYZE_ASK_FINISH
     elif 'LIKE TO ANALYZE' in s:
         state = STATE_ASK_ANALYZE
     elif 'DO YOU WANT TO PLAY' in s or 'WHOSE MOVE' in s:
@@ -295,6 +299,8 @@ def handle38():
                 c = z.memory[pos+1]
                 pos += 2
                 if c == 0x1c:
+                    if state == STATE_ANALYZE_ASK_FINISH:
+                        state = STATE_ANALYSIS0
                     clearScreen()
                 elif c == 0x83:
                     putCharacter(ord('-'))
@@ -382,9 +388,13 @@ def getImage():
         cv2.circle(screen, (x,y), int(SQUARE * 0.45), 0 if (x+y)%2 == 0 else 255, 2, cv2.LINE_AA)
         
     return screen
+    
+def signed(x):
+    return x - 256 if x >= 128 else x
 
 def handleBreakpoints():
     global repeatRun, state
+    
     if z.pc == 0x00:
         print("[reset]")
         return True

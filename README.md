@@ -3,8 +3,13 @@ except perhaps the hp1345 font, whose copyright status, if any, I do not know.
 
 It requires zout/sargon-z80.lst and zout/sargon-z80.hex generated via zmac from sargon-z80.asm
 (google it). I recommend patching sargon-z80.asm using the provided patch in the sargon-z80.asm.diff
-file to fix a scan error and two bugs in the original code: a data overlap bug and movement bugs in
-analysis mode.
+file to fix a scan error and some bugs in the original code: 
+ 
+ - data overlap bug 
+ 
+ - movement bugs in analysis mode
+ 
+ - bug when analysis mode is invoked at game start.
 
 sargon-text.py is a very simple text mode emulator. 
 
