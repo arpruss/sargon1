@@ -336,9 +336,7 @@ z = z80.Z80Machine()
 z.set_memory_block(0, readhex.hexToMemory(HEXFILE))
 z.set_breakpoint(0x38)
 z.set_breakpoint(0x00)
-z.set_breakpoint(locations['BOOK'])
 z.set_breakpoint(BLINKER) 
-z.set_breakpoint(POINTS_END)
 
 if CHECK_FOR_COMPUTER_REPEATS:
     #z.set_breakpoint(COMPUTER_MOVE)
