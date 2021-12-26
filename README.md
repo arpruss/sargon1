@@ -9,7 +9,9 @@ file to fix a scan error and some bugs in the original code:
  
  - movement bugs in analysis mode
  
- - bug when analysis mode is invoked at game start.
+ - bug when analysis mode is invoked at game start
+ 
+ - set move number to start at 3/4 for analysis mode, to prevent opening book from being buggily invoked.
 
 sargon-text.py is a very simple text mode emulator. 
 

@@ -1,5 +1,5 @@
 --- sargon-z80.asm.orig	2021-12-16 11:10:33.352152900 -0600
-+++ sargon-z80.asm	2021-12-26 09:50:24.745233200 -0600
++++ sargon-z80.asm	2021-12-26 12:28:10.593666500 -0600
 @@ -171,7 +171,18 @@
  ;                     0 -- Empty Square
  ;***********************************************************
@@ -74,3 +74,15 @@
          JP      NC,AN08         ; No - jump
          LD      a,98            ; Wrap around to top of screen
  AN0B:   JP      AN08            ; Jump
+@@ -2915,7 +2946,11 @@
+         PRTLIN  TITLE4,15       ; Put up titles
+         PRTLIN  TITLE3,15
+         CP      57H             ; Is is whites move ?
++        LD      a,3
++        LD      (MOVENO),a
+         JP      Z,DRIV04        ; Yes - jump
++        INC     a
++        LD      (MOVENO),a
+         PRTBLK  MVENUM,3        ; Print move number
+         PRTBLK  SPACE,6         ; Tab to blacks column
+         LD      a,(KOLOR)       ; Computer's color

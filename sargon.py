@@ -56,11 +56,12 @@ ANBDPS = locations['ANBDPS']
 
 if CHECK_FOR_COMPUTER_REPEATS:
     COMPUTER_MOVE = locations['CPTRMV'] 
-    AFTER_MOVE = locations['CP0C']+6 
+    AFTER_MOVE = locations['CP0C']+3
     POINTS = locations['POINTS'] 
     POINTS_END = locations['rel016'] 
     COMPUTER_COLOR = locations['KOLOR'] 
     CURRENT_COLOR = locations['COLOR'] 
+    UNMOVE = locations['UNMOVE']
 
 state = STATE_ASK_PLAY
 repeatRun = False
@@ -335,6 +336,7 @@ z = z80.Z80Machine()
 z.set_memory_block(0, readhex.hexToMemory(HEXFILE))
 z.set_breakpoint(0x38)
 z.set_breakpoint(0x00)
+z.set_breakpoint(locations['BOOK'])
 z.set_breakpoint(BLINKER) 
 if CHECK_FOR_COMPUTER_REPEATS:
     #z.set_breakpoint(COMPUTER_MOVE)
@@ -394,7 +396,8 @@ def signed(x):
 
 def handleBreakpoints():
     global repeatRun, state
-    
+    if z.pc == locations['BOOK']:
+        print("book")
     if z.pc == 0x00:
         print("[reset]")
         return True
@@ -416,17 +419,21 @@ def handleBreakpoints():
                 else:
                     print("recomputing to avoid draw")
                     z.set_breakpoint(POINTS)
-                    z.pc = COMPUTER_MOVE
+                    z.sp -= 2
+                    setWord(z.sp, COMPUTER_MOVE)
+                    z.pc = UNMOVE
                     repeatRun = True
+            elif repeatRun:
+                repeatRun = False
+                z.clear_breakpoint(POINTS)
             if z.pc == AFTER_MOVE:
                 computerHistory.append(board)
         elif z.pc == POINTS:
             board = bytes(z.memory[BOARD:BOARD+120])
             if z.memory[COMPUTER_COLOR] == z.memory[CURRENT_COLOR] and computerHistory.count(board) >= 2:
+                print("zero")
                 z.a = 0
                 z.pc = POINTS_END
-    else:
-        history.append(board)
     return False    
 
 lastFrame = 0
